@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Indovina la Parola</title>
+<style>
+  :root{
+    --bg: #1B1225;
+    --surface: #2A1B3D;
+    --surface-2: #35234E;
+    --lime: #C6FF3D;
+    --red: #FF4D6D;
+    --gold: #FFD166;
+    --ink: #F5F0FF;
+    --ink-dim: #B7A8CF;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none;}
+  html,body{
+    margin:0; padding:0; height:100%; width:100%;
+    background:var(--bg); color:var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    overflow:hidden;
+    overscroll-behavior:none;
+  }
+  #app{
+    position:fixed; inset:0;
+    display:flex; flex-direction:column;
+  }
+
+  /* ---------- ROTATE OVERLAY ---------- */
+  #rotate-overlay{
+    position:fixed; inset:0; z-index:999;
+    background:var(--bg);
+    display:none;
+    align-items:center; justify-content:center;
+    flex-direction:column; gap:16px;
+    text-align:center; padding:24px;
+  }
+  @media (orientation:portrait){
+    #rotate-overlay{ display:flex; }
+    #app{ display:none; }
+  }
+  .rotate-icon{ font-size:56px; animation: tilt 1.6s ease-in-out infinite; }
+  @keyframes tilt{
+    0%,100%{ transform:rotate(0deg); }
+    50%{ transform:rotate(90deg); }
+  }
+  #rotate-overlay h2{ font-size:20px; margin:0; letter-spacing:.02em; }
+  #rotate-overlay p{ color:var(--ink-dim); margin:0; font-size:14px; }
+
+  /* ---------- SCREENS ---------- */
+  .screen{
+    flex:1; display:none;
+    flex-direction:column; align-items:center; justify-content:center;
+    height:100%; width:100%;
+    padding: 4vh 6vw;
+    position:relative;
+  }
+  .screen.active{ display:flex; }
+
+  /* ---- START ---- */
+  #screen-start .title{
+    font-family: "Arial Black", Impact, sans-serif;
+    font-size: clamp(28px, 6vw, 52px);
+    line-height: 1;
+    letter-spacing: -0.01em;
+    text-transform: uppercase;
+    text-align:center;
+    margin: 0 0 6px 0;
+  }
+  #screen-start .title span{ color: var(--lime); }
+  #screen-start .subtitle{
+    color: var(--ink-dim);
+    font-size: clamp(12px, 2vw, 16px);
+    text-align:center;
+    margin: 0 0 5vh 0;
+    max-width: 60ch;
+  }
+  .btn-big{
+    font-family: "Arial Black", Impact, sans-serif;
+    font-size: clamp(20px, 3.4vw, 30px);
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    border:none;
+    border-radius: 999px;
+    padding: 20px 56px;
+    color: #14150F;
+    background: var(--lime);
+    box-shadow: 0 6px 0 #7fae1c, 0 10px 24px rgba(198,255,61,0.25);
+    cursor:pointer;
+    transition: transform .08s ease;
+  }
+  .btn-big:active{ transform: translateY(6px); box-shadow: 0 0 0 #7fae1c; }
+
+  /* ---------- GAME SCREEN ---------- */
+  #screen-game{ padding:0; justify-content:flex-start; }
+
+  .topbar{
+    width:100%;
+    display:flex; align-items:center; justify-content:space-between;
+    padding: 2vh 4vw 1vh 4vw;
+    flex-shrink:0;
+  }
+  .score-pill{
+    background: var(--surface);
+    border-radius: 999px;
+    padding: 8px 20px;
+    display:flex; align-items:center; gap:8px;
+    font-weight:700;
+    font-size: clamp(14px,2vw,18px);
+  }
+  .score-pill .num{ color: var(--gold); font-family:"Arial Black",sans-serif; font-size: 1.2em;}
+  .timer-num{
+    font-family:"Arial Black",sans-serif;
+    font-size: clamp(20px, 3vw, 30px);
+    color: var(--ink);
+    min-width: 3ch;
+    text-align:right;
+  }
+
+  .timerbar-track{
+    width:100%; height: 10px;
+    background: var(--surface);
+    flex-shrink:0;
+  }
+  .timerbar-fill{
+    height:100%;
+    width:100%;
+    background: var(--lime);
+    transition: width .25s linear, background-color .3s linear;
+  }
+
+  .word-zone{
+    flex:1;
+    width:100%;
+    display:flex; align-items:center; justify-content:center;
+    padding: 2vh 6vw;
+    min-height:0;
+  }
+  .word-card{
+    background: var(--surface);
+    border-radius: 28px;
+    width:100%;
+    height:100%;
+    display:flex; align-items:center; justify-content:center;
+    padding: 2vh 4vw;
+  }
+  #word-display{
+    font-family: "Arial Black", Impact, sans-serif;
+    font-size: clamp(28px, 7vw, 68px);
+    text-transform: uppercase;
+    text-align:center;
+    letter-spacing: -0.01em;
+    line-height:1.05;
+    word-break: break-word;
+  }
+
+  .controls{
+    display:flex;
+    width:100%;
+    flex-shrink:0;
+    height: 24vh;
+    min-height: 110px;
+  }
+  .ctrl-btn{
+    flex:1;
+    border:none;
+    font-family: "Arial Black", Impact, sans-serif;
+    font-size: clamp(18px, 4vw, 30px);
+    text-transform:uppercase;
+    letter-spacing: 0.02em;
+    display:flex; align-items:center; justify-content:center;
+    gap: 12px;
+    cursor:pointer;
+  }
+  #btn-skip{
+    background: var(--red);
+    color: #2A0A12;
+  }
+  #btn-next{
+    background: var(--lime);
+    color: #14150F;
+  }
+  .ctrl-btn:active{ filter:brightness(0.85); }
+  .ctrl-icon{ font-size: 1.3em; line-height:1;}
+
+  /* ---------- END SCREEN ---------- */
+  #screen-end .end-label{
+    color: var(--ink-dim);
+    letter-spacing: 0.15em;
+    text-transform:uppercase;
+    font-size: clamp(11px,1.6vw,14px);
+    margin-bottom: 4px;
+  }
+  #final-score{
+    font-family:"Arial Black",sans-serif;
+    font-size: clamp(60px, 14vw, 130px);
+    color: var(--gold);
+    line-height:1;
+    margin: 0 0 4px 0;
+  }
+  #screen-end .end-sub{
+    color: var(--ink-dim);
+    font-size: clamp(13px,2vw,16px);
+    margin-bottom: 4vh;
+  }
+</style>
+</head>
+<body>
+
+<div id="rotate-overlay">
+  <div class="rotate-icon">📱</div>
+  <h2>Ruota il telefono</h2>
+  <p>Questo gioco si usa in orizzontale</p>
+</div>
+
+<div id="app">
+
+  <!-- START -->
+  <div class="screen active" id="screen-start">
+    <div class="title">Indovina<br><span>la Parola</span></div>
+    <div class="subtitle">Mostra il telefono agli altri: descrivete la parola senza dirla. Se la indovina, avanti. Se ci si blocca, salta. 100 secondi a manche.</div>
+    <button class="btn-big" id="btn-start">Inizia</button>
+  </div>
+
+  <!-- GAME -->
+  <div class="screen" id="screen-game">
+    <div class="topbar">
+      <div class="score-pill">Punti <span class="num" id="score-live">0</span></div>
+      <div class="timer-num" id="timer-num">100</div>
+    </div>
+    <div class="timerbar-track"><div class="timerbar-fill" id="timerbar-fill"></div></div>
+
+    <div class="word-zone">
+      <div class="word-card"><div id="word-display">PAROLA</div></div>
+    </div>
+
+    <div class="controls">
+      <button class="ctrl-btn" id="btn-skip"><span class="ctrl-icon">✕</span>Salta</button>
+      <button class="ctrl-btn" id="btn-next"><span class="ctrl-icon">✓</span>Avanti</button>
+    </div>
+  </div>
+
+  <!-- END -->
+  <div class="screen" id="screen-end">
+    <div class="end-label">Tempo scaduto</div>
+    <div id="final-score">0</div>
+    <div class="end-sub" id="end-sub">parole indovinate</div>
+    <button class="btn-big" id="btn-replay">Rigioca</button>
+  </div>
+
+</div>
+
+<script>
+(function(){
+  var WORDS = [
+    "Cane","Gatto","Elefante","Bicicletta","Chitarra","Pizza","Spiaggia","Vulcano",
+    "Ombrello","Astronave","Pirata","Vampiro","Semaforo","Zaino","Montagna","Farfalla",
+    "Terremoto","Fotografia","Orologio","Scala","Fontana","Castello","Deserto","Iceberg",
+    "Robot","Fantasma","Sirena","Drago","Labirinto","Scoiattolo","Canguro","Pinguino",
+    "Aquilone","Bussola","Telescopio","Vulcano","Cascata","Arcobaleno","Fulmine","Terrazza",
+    "Ventaglio","Bilancia","Specchio","Candela","Lanterna","Tappeto","Poltrona","Scrivania",
+    "Valigia","Passaporto","Aeroporto","Stazione","Metropolitana","Semaforo","Marciapiede",
+    "Cassiere","Infermiere","Cuoco","Pompiere","Astronauta","Muratore","Falegname","Sarto",
+    "Fioraio","Panettiere","Macellaio","Idraulico","Elettricista","Barbiere","Giardiniere",
+    "Fotografo","Giudice","Avvocato","Meccanico","Pilota","Marinaio","Contadino","Pescatore",
+    "Calcio","Tennis","Nuoto","Pallavolo","Basket","Ciclismo","Boxe","Scherma","Sci",
+    "Pattinaggio","Karate","Rugby","Golf","Bowling","Freccette","Scacchi","Biliardo",
+    "Panino","Gelato","Lasagne","Risotto","Formaggio","Prosciutto","Anguria","Ananas",
+    "Cioccolato","Popcorn","Frittata","Minestrone","Panettone","Cornetto","Cappuccino",
+    "Limone","Fragola","Carciofo","Zucchina","Peperone","Melanzana","Castagna","Noce",
+    "Vulcano","Cratere","Ghiacciaio","Savana","Giungla","Barriera corallina","Prateria",
+    "Nuvola","Temporale","Nebbia","Brina","Arcipelago","Penisola","Altopiano","Collina",
+    "Corriere","Postino","Vigile","Bibliotecario","Traduttore","Architetto","Veterinario",
+    "Chirurgo","Dentista","Farmacista","Notaio","Ingegnere","Insegnante","Custode",
+    "Skateboard","Monopattino","Altalena","Scivolo","Trampolino","Yo-yo","Aquilone",
+    "Marionetta","Puzzle","Domino","Origami","Karaoke","Fuochi d'artificio","Bolle di sapone",
+    "Dentifricio","Spazzolino","Asciugamano","Pettine","Sapone","Shampoo","Rasoio",
+    "Ombrellone","Salvagente","Costume da bagno","Occhiali da sole","Cappello","Sciarpa",
+    "Guanti","Stivali","Cravatta","Bottone","Cerniera","Cucitura","Gomito","Ginocchio",
+    "Sopracciglio","Unghia","Ombelico","Mento","Nuca","Caviglia","Polso","Tallone",
+    "Vampata","Singhiozzo","Starnuto","Sbadiglio","Russare","Sudore","Lacrima","Solletico",
+    "Formica","Ape","Zanzara","Ragno","Lucciola","Grillo","Scarafaggio","Coccinella",
+    "Balena","Delfino","Squalo","Polpo","Granchio","Medusa","Tartaruga","Foca",
+    "Struzzo","Pavone","Fenicottero","Gufo","Falco","Pipistrello","Riccio","Talpa",
+    "Vulcano","Terremoto","Uragano","Valanga","Alluvione","Siccità","Frana","Tsunami",
+    "Biblioteca","Museo","Cinema","Teatro","Circo","Zoo","Acquario","Planetario",
+    "Farmacia","Panetteria","Macelleria","Lavanderia","Officina","Cantiere","Fabbrica",
+    "Scuolabus","Ambulanza","Autopompa","Rimorchio","Traghetto","Mongolfiera","Sottomarino"
+  ];
+
+  var state = {
+    words: [],
+    idx: 0,
+    score: 0,
+    timeLeft: 100,
+    timerId: null,
+    running: false
+  };
+
+  var screens = {
+    start: document.getElementById('screen-start'),
+    game: document.getElementById('screen-game'),
+    end: document.getElementById('screen-end')
+  };
+
+  function showScreen(name){
+    Object.keys(screens).forEach(function(k){
+      screens[k].classList.toggle('active', k === name);
+    });
+  }
+
+  function shuffle(arr){
+    var a = arr.slice();
+    for(var i = a.length - 1; i > 0; i--){
+      var j = Math.floor(Math.random() * (i + 1));
+      var tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+    }
+    return a;
+  }
+
+  function nextWord(){
+    if(state.idx >= state.words.length){
+      state.words = shuffle(WORDS);
+      state.idx = 0;
+    }
+    document.getElementById('word-display').textContent = state.words[state.idx];
+    state.idx++;
+  }
+
+  function updateTimerUI(){
+    document.getElementById('timer-num').textContent = state.timeLeft;
+    var pct = (state.timeLeft / 100) * 100;
+    var fill = document.getElementById('timerbar-fill');
+    fill.style.width = pct + '%';
+    var color = '#C6FF3D';
+    if(pct <= 50 && pct > 20){ color = '#FFD166'; }
+    else if(pct <= 20){ color = '#FF4D6D'; }
+    fill.style.backgroundColor = color;
+  }
+
+  function startGame(){
+    state.words = shuffle(WORDS);
+    state.idx = 0;
+    state.score = 0;
+    state.timeLeft = 100;
+    state.running = true;
+    document.getElementById('score-live').textContent = '0';
+    updateTimerUI();
+    nextWord();
+    showScreen('game');
+
+    clearInterval(state.timerId);
+    state.timerId = setInterval(function(){
+      state.timeLeft--;
+      updateTimerUI();
+      if(state.timeLeft <= 0){
+        endGame();
+      }
+    }, 1000);
+  }
+
+  function endGame(){
+    state.running = false;
+    clearInterval(state.timerId);
+    document.getElementById('final-score').textContent = state.score;
+    document.getElementById('end-sub').textContent =
+      state.score === 1 ? 'parola indovinata' : 'parole indovinate';
+    showScreen('end');
+  }
+
+  function handleNext(){
+    if(!state.running) return;
+    state.score++;
+    document.getElementById('score-live').textContent = state.score;
+    nextWord();
+  }
+
+  function handleSkip(){
+    if(!state.running) return;
+    nextWord();
+  }
+
+  document.getElementById('btn-start').addEventListener('click', startGame);
+  document.getElementById('btn-replay').addEventListener('click', startGame);
+  document.getElementById('btn-next').addEventListener('click', handleNext);
+  document.getElementById('btn-skip').addEventListener('click', handleSkip);
+
+  // Prevent double-tap zoom / accidental scroll
+  document.addEventListener('touchmove', function(e){ e.preventDefault(); }, { passive:false });
+})();
+</script>
+
+</body>
+</html>
